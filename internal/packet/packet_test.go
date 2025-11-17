@@ -5,13 +5,17 @@ import (
 	"testing"
 )
 
-func TestBuildPacket(t *testing.T) {
+func TestSerializePacket(t *testing.T) {
 	// Basic values for the test
 	id := int32(0x11223344)
 	ptype := int32(0x55667788)
 	body := []byte("hello")
-
-	pkt := BuildPacket(id, ptype, body)
+	pktData := RCONPacket{
+		Id:   id,
+		Body: body,
+		Type: ptype,
+	}
+	pkt := pktData.Serialize()
 
 	// size is 8 (id+type) + len(body) + 2 (two null terminators)
 	expectedSize := uint32(8 + len(body) + 2)

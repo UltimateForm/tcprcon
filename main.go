@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
-	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
-	"net"
 	"os"
 
+	"github.com/UltimateForm/tcprcon/internal/client"
 	"github.com/UltimateForm/tcprcon/internal/packet"
 )
 
@@ -16,54 +16,55 @@ func main() {
 	port := os.Getenv("rcon_port")
 	password := os.Getenv("rcon_password")
 	log.Printf("Dialing %v at port %v\n", address, port)
-	writerCon, err := net.Dial("tcp", address+":"+port)
+	rcon, err := client.New(address + ":" + port)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer writerCon.Close()
-	counter := int32(0)
+	defer rcon.Close()
+
 	log.Println("Building auth packet")
-	authPacket := packet.BuildPacket(counter, packet.SERVERDATA_AUTH, []byte(password))
-	writer := bufio.NewWriter(writerCon)
-	reader := bufio.NewReader(writerCon)
+	authId := rcon.Id()
+	authPacket := packet.NewAuthPacket(authId, password)
 	log.Println("Sending auth packet")
-	written, err := writer.Write(authPacket)
+	written, err := rcon.Write(authPacket.Serialize())
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Written %v bytes of auth packet to connection", written)
+	responsePkt, err := packet.Read(rcon, authId)
+	if err != nil {
+		log.Fatal(errors.Join(errors.New("authentication failed"), err))
+	}
+	if responsePkt.Type != packet.SERVERDATA_AUTH_RESPONSE {
+		log.Fatal(
+			fmt.Errorf(
+				"unexpected packet type %v, expected %v",
+				responsePkt.Type,
+				packet.SERVERDATA_AUTH_RESPONSE,
+			),
+		)
+	}
 	for {
-		log.Println("Flushing writer...")
-		writer.Flush()
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Reading from server...")
-		dword := make([]byte, 4)
-		readLengthDword, err := reader.Read(dword)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Read %v bytes from server response head", readLengthDword)
-		packetSize := binary.LittleEndian.Uint32(dword)
-		log.Printf("Response packet size %v", packetSize)
-		packetBytes := make([]byte, packetSize)
-		readLength, err := reader.Read(packetBytes)
-		if err != nil {
-			log.Fatal(err)
-		}
-		counter++
-		log.Printf("Read %v bytes from server response", readLength)
-		id := int32(binary.LittleEndian.Uint32(packetBytes[0:4]))
-		packetType := int32(binary.LittleEndian.Uint32(packetBytes[4:8]))
-		body := string(packetBytes[8:])
-		log.Printf("Server response: Id: %v, type: %v, body: %v\n", id, packetType, body)
-		log.Println("-----STARTING NEW EXCHANGE-----")
+		log.Println("-----STARTING CMD EXCHANGE-----")
 		stdinread := bufio.NewReader(os.Stdin)
 		fmt.Print(">")
 		cmd, _, err := stdinread.ReadLine()
 		if err != nil {
 			log.Fatal(err)
 		}
-		execPacket := packet.BuildPacket(counter, packet.SERVERDATA_EXECCOMMAND, cmd)
-		writer.Write(execPacket)
+		currId := rcon.Id()
+		execPacket := packet.New(rcon.Id(), packet.SERVERDATA_EXECCOMMAND, cmd)
+		rcon.Write(execPacket.Serialize())
+		log.Println("Flushing writer...")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Reading from server...")
+		responsePkt, err := packet.Read(rcon, currId)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("<%v\n", responsePkt.BodyStr())
 	}
 
 }
