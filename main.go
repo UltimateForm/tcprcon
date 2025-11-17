@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/UltimateForm/tcprcon/internal/client"
+	"github.com/UltimateForm/tcprcon/internal/common"
 	"github.com/UltimateForm/tcprcon/internal/packet"
 )
 
@@ -23,26 +24,12 @@ func main() {
 	defer rcon.Close()
 
 	log.Println("Building auth packet")
-	authId := rcon.Id()
-	authPacket := packet.NewAuthPacket(authId, password)
-	log.Println("Sending auth packet")
-	written, err := rcon.Write(authPacket.Serialize())
-	if err != nil {
+	auhSuccess, authErr := common.Authenticate(rcon, password)
+	if authErr != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Written %v bytes of auth packet to connection", written)
-	responsePkt, err := packet.Read(rcon, authId)
-	if err != nil {
-		log.Fatal(errors.Join(errors.New("authentication failed"), err))
-	}
-	if responsePkt.Type != packet.SERVERDATA_AUTH_RESPONSE {
-		log.Fatal(
-			fmt.Errorf(
-				"unexpected packet type %v, expected %v",
-				responsePkt.Type,
-				packet.SERVERDATA_AUTH_RESPONSE,
-			),
-		)
+	if !auhSuccess {
+		log.Fatal(errors.New("auth failure"))
 	}
 	for {
 		log.Println("-----STARTING CMD EXCHANGE-----")
