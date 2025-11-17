@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 )
@@ -54,5 +55,93 @@ func TestSerializePacket(t *testing.T) {
 	}
 	if pkt[bodyEnd+1] != 0 {
 		t.Fatalf("second null terminator not zero: got 0x%x", pkt[bodyEnd+1])
+	}
+}
+
+func TestReadPacket(t *testing.T) {
+	// i could use the existing packet.New() command but idk i wanna make sure my tests are not too sticky
+	id := int32(42)
+	ptype := int32(SERVERDATA_AUTH_RESPONSE)
+	body := []byte("server response body")
+
+	// keep sync'd with internal/packet/builder.go Serialize() func
+	size := uint32(8 + len(body) + 2)
+	packet := make([]byte, 4+size)
+	binary.LittleEndian.PutUint32(packet[0:4], size)
+	binary.LittleEndian.PutUint32(packet[4:8], uint32(id))
+	binary.LittleEndian.PutUint32(packet[8:12], uint32(ptype))
+	copy(packet[12:], body)
+	packet[12+len(body)] = 0
+	packet[12+len(body)+1] = 0
+
+	reader := bytes.NewReader(packet)
+	pkt, err := Read(reader, id)
+
+	if err != nil {
+		t.Fatalf("Read failed: %v", err)
+	}
+
+	if pkt.Id != id {
+		t.Fatalf("id mismatch: got %d want %d", pkt.Id, id)
+	}
+
+	if pkt.Type != ptype {
+		t.Fatalf("type mismatch: got %d want %d", pkt.Type, ptype)
+	}
+
+	expectedBodyStr := string(body)
+	receivedBodyStr := pkt.BodyStr()
+	if expectedBodyStr != receivedBodyStr {
+		t.Fatalf("body mismatch: got %q want %q", receivedBodyStr, expectedBodyStr)
+	}
+}
+
+func TestReadPacketIdMismatch(t *testing.T) {
+	id := int32(42)
+	expectedId := int32(99)
+	ptype := int32(SERVERDATA_AUTH_RESPONSE)
+	body := []byte("test")
+
+	size := uint32(8 + len(body) + 2)
+	packet := make([]byte, 4+size)
+	binary.LittleEndian.PutUint32(packet[0:4], size)
+	binary.LittleEndian.PutUint32(packet[4:8], uint32(id))
+	binary.LittleEndian.PutUint32(packet[8:12], uint32(ptype))
+	copy(packet[12:], body)
+
+	reader := bytes.NewReader(packet)
+	pkt, err := Read(reader, expectedId)
+
+	if err != ErrPacketIdMismatch {
+		t.Fatalf("expected ErrPacketIdMismatch, got %v", err)
+	}
+
+	if pkt.Id != id {
+		t.Fatalf("packet id should still be set: got %d want %d", pkt.Id, id)
+	}
+}
+
+func TestReadPacketEmptyBody(t *testing.T) {
+	id := int32(1)
+	ptype := int32(SERVERDATA_RESPONSE_VALUE)
+	body := []byte{}
+
+	size := uint32(8 + len(body) + 2)
+	packet := make([]byte, 4+size)
+	binary.LittleEndian.PutUint32(packet[0:4], size)
+	binary.LittleEndian.PutUint32(packet[4:8], uint32(id))
+	binary.LittleEndian.PutUint32(packet[8:12], uint32(ptype))
+	packet[12] = 0
+	packet[13] = 0
+
+	reader := bytes.NewReader(packet)
+	pkt, err := Read(reader, id)
+
+	if err != nil {
+		t.Fatalf("Read failed: %v", err)
+	}
+
+	if len(pkt.Body) != 0 {
+		t.Fatalf("body should be empty: got %v", pkt.Body)
 	}
 }

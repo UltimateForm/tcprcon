@@ -1,6 +1,7 @@
 package packet
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"log"
@@ -61,5 +62,6 @@ func Read(reader io.Reader, expectedId int32) (RCONPacket, error) {
 		return RCONPacket{Id: id}, ErrPacketIdMismatch
 	}
 	packetType := int32(binary.LittleEndian.Uint32(packetBytes[4:8]))
-	return New(id, packetType, packetBytes[8:]), nil
+	body := bytes.TrimRight(packetBytes[8:], "\x00")
+	return New(id, packetType, body), nil
 }
