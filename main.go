@@ -40,7 +40,7 @@ func main() {
 			log.Fatal(err)
 		}
 		currId := rcon.Id()
-		execPacket := packet.New(rcon.Id(), packet.SERVERDATA_EXECCOMMAND, cmd)
+		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
 		rcon.Write(execPacket.Serialize())
 		log.Println("Flushing writer...")
 		if err != nil {
@@ -49,7 +49,7 @@ func main() {
 		log.Println("Reading from server...")
 		responsePkt, err := packet.Read(rcon, currId)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
 		}
 		fmt.Printf("<%v\n", responsePkt.BodyStr())
 	}

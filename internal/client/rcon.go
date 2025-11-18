@@ -1,6 +1,9 @@
 package client
 
-import "net"
+import (
+	"net"
+	"time"
+)
 
 type RCONClient struct {
 	Address string
@@ -21,6 +24,18 @@ func (src *RCONClient) Write(p []byte) (n int, err error) {
 		src.count++
 	}()
 	return src.con.Write(p)
+}
+
+func (src *RCONClient) SetReadDeadline(t time.Time) error {
+	return src.con.SetReadDeadline(t)
+}
+
+func (src *RCONClient) SetDeadline(t time.Time) error {
+	return src.con.SetDeadline(t)
+}
+
+func (src *RCONClient) SetWriteDeadline(t time.Time) error {
+	return src.con.SetWriteDeadline(t)
 }
 
 func (src *RCONClient) Close() error {
