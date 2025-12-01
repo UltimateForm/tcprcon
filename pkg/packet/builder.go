@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"log"
+
+	"github.com/UltimateForm/tcprcon/internal/logger"
 )
 
 type RCONPacket struct {
@@ -33,7 +34,7 @@ func NewAuthPacket(id int32, password string) RCONPacket {
 
 func (src RCONPacket) Serialize() []byte {
 	size := 8 + len(src.Body) + 2
-	log.Printf("Building packet of size %v\n", size)
+	logger.Debug.Printf("Building packet of size %v\n", size)
 	var bytesSlice []byte = make([]byte, size+4)
 	binary.LittleEndian.PutUint32(bytesSlice[0:4], uint32(size))
 	binary.LittleEndian.PutUint32(bytesSlice[4:8], uint32(src.Id))
@@ -41,7 +42,7 @@ func (src RCONPacket) Serialize() []byte {
 	copy(bytesSlice[12:], src.Body)
 	bytesSlice[12+len(src.Body)] = 0
 	bytesSlice[12+len(src.Body)+1] = 0
-	log.Printf("Final packet length %v", len(bytesSlice))
+	logger.Debug.Printf("Final packet length %v", len(bytesSlice))
 	return bytesSlice
 }
 

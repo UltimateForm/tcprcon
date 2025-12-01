@@ -4,54 +4,56 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 
-	"github.com/UltimateForm/tcprcon/internal/client"
-	"github.com/UltimateForm/tcprcon/internal/common"
-	"github.com/UltimateForm/tcprcon/internal/packet"
+	"github.com/UltimateForm/tcprcon/internal/logger"
+	"github.com/UltimateForm/tcprcon/pkg/client"
+	"github.com/UltimateForm/tcprcon/pkg/common"
+	"github.com/UltimateForm/tcprcon/pkg/packet"
 )
 
 func main() {
 	address := os.Getenv("rcon_address")
 	port := os.Getenv("rcon_port")
 	password := os.Getenv("rcon_password")
-	log.Printf("Dialing %v at port %v\n", address, port)
-	rcon, err := client.New(address + ":" + port)
+	logger.Debug.Printf("Dialing %v at port %v\n", address, port)
+	fullAddress := address + ":" + port
+	shell := fmt.Sprintf("[rcon@%v]", fullAddress)
+	rcon, err := client.New(fullAddress)
 	if err != nil {
-		log.Fatal(err)
+		logger.Critical.Fatal(err)
 	}
 	defer rcon.Close()
 
-	log.Println("Building auth packet")
+	logger.Debug.Println("Building auth packet")
 	auhSuccess, authErr := common.Authenticate(rcon, password)
 	if authErr != nil {
-		log.Fatal(err)
+		logger.Err.Fatal(err)
 	}
 	if !auhSuccess {
-		log.Fatal(errors.New("auth failure"))
+		logger.Err.Fatal(errors.New("auth failure"))
 	}
 	for {
-		log.Println("-----STARTING CMD EXCHANGE-----")
+		logger.Info.Println("-----STARTING CMD EXCHANGE-----")
 		stdinread := bufio.NewReader(os.Stdin)
-		fmt.Print(">")
+		fmt.Printf("%v#", shell)
 		cmd, _, err := stdinread.ReadLine()
 		if err != nil {
-			log.Fatal(err)
+			logger.Critical.Fatal(err)
 		}
 		currId := rcon.Id()
 		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
 		rcon.Write(execPacket.Serialize())
-		log.Println("Flushing writer...")
+		logger.Debug.Println("Flushing writer...")
 		if err != nil {
-			log.Fatal(err)
+			logger.Critical.Fatal(err)
 		}
-		log.Println("Reading from server...")
+		logger.Debug.Println("Reading from server...")
 		responsePkt, err := packet.Read(rcon, currId)
 		if err != nil {
-			log.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
+			logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
 		}
-		fmt.Printf("<%v\n", responsePkt.BodyStr())
+		fmt.Printf("OUT: %v\n", responsePkt.BodyStr())
 	}
 
 }
