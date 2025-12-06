@@ -72,6 +72,15 @@ var (
 	Critical *log.Logger
 )
 
+func init() {
+	Writer = New(LevelWarning)
+	Info = log.New(Writer.Info, "INF::", 0)
+	Debug = log.New(Writer.Debug, "DBG::", 0)
+	Err = log.New(Writer.Error, "ERR::", 0)
+	Warn = log.New(Writer.Warn, "WRN::", 0)
+	Critical = log.New(Writer.Critical, "CRT::", 0)
+}
+
 func Setup(level uint8) {
 	Writer = New(level)
 	Info = log.New(Writer.Info, "INF::", 0)
