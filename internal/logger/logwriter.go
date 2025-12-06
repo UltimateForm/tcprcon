@@ -72,8 +72,8 @@ var (
 	Critical *log.Logger
 )
 
-func init() {
-	Writer = New(LevelWarning)
+func Setup(level uint8) {
+	Writer = New(level)
 	Info = log.New(Writer.Info, "INF::", 0)
 	Debug = log.New(Writer.Debug, "DBG::", 0)
 	Err = log.New(Writer.Error, "ERR::", 0)

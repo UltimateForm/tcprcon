@@ -18,11 +18,13 @@ import (
 var addressParam string
 var portParam uint
 var passwordParam string
+var logLevelParam uint
 
 func init() {
 	flag.StringVar(&addressParam, "address", "localhost", "RCON address, excluding port")
 	flag.UintVar(&portParam, "port", 7778, "RCON port")
 	flag.StringVar(&passwordParam, "pw", "", "RCON password, if not provided will attempt to load from env variables, if unavailable will prompt")
+	flag.UintVar(&logLevelParam, "log", logger.LevelWarning, "sets log level (syslog serverity tiers) for execution")
 }
 
 func determinePassword() (string, error) {
@@ -52,6 +54,7 @@ func determinePassword() (string, error) {
 
 func Execute() {
 	flag.Parse()
+	logger.Setup(uint8(logLevelParam))
 	fullAddress := addressParam + ":" + strconv.Itoa(int(portParam))
 	shell := fmt.Sprintf("[rcon@%v]", fullAddress)
 	password, err := determinePassword()
