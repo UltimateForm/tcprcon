@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/UltimateForm/tcprcon/internal/logger"
 	"github.com/UltimateForm/tcprcon/pkg/client"
@@ -29,11 +31,13 @@ func init() {
 
 func determinePassword() (string, error) {
 	if len(passwordParam) > 0 {
+		logger.Debug.Println("using password from parameter")
 		return passwordParam, nil
 	}
 	envPassword := os.Getenv("rcon_password")
 	var password string
 	if len(envPassword) > 0 {
+		logger.Debug.Println("using password from os env")
 		r := ""
 		for r == "" {
 			fmt.Print("RCON password found in environment variables, use for authentication? (y/n) ")
@@ -44,10 +48,12 @@ func determinePassword() (string, error) {
 			}
 			r = string(stdinbytes)
 		}
-		if strings.ToLower(r) != "y" {
-			return "", errors.New("Unimplemented")
+		if strings.ToLower(r) == "y" {
+			password = envPassword
 		}
-		password = envPassword
+	}
+	if len(password) == 0 {
+		return "", errors.New("unimplemented password retrieval path")
 	}
 	return password, nil
 }
@@ -71,32 +77,56 @@ func Execute() {
 	logger.Debug.Println("Building auth packet")
 	auhSuccess, authErr := common.Authenticate(rcon, password)
 	if authErr != nil {
-		logger.Err.Fatal(err)
+		logger.Err.Fatal(errors.Join(errors.New("auth failure"), authErr))
 	}
 	if !auhSuccess {
-		logger.Err.Fatal(errors.New("auth failure"))
+		logger.Err.Fatal(errors.New("unknown auth error"))
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	packetChannel := packet.CreateResponseChannel(rcon, ctx)
+	packetReader := func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case streamedPacket := <-packetChannel:
+				if streamedPacket.Error != nil {
+					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+				}
+				fmt.Printf("OUT(%v): %v\n", streamedPacket.Id, streamedPacket.BodyStr())
+			default:
+				logger.Debug.Println("nothing to read, sleeping")
+				time.Sleep(time.Duration(3 * time.Second))
+			}
+		}
+	}
+	go packetReader()
 	for {
 		logger.Info.Println("-----STARTING CMD EXCHANGE-----")
 		stdinread := bufio.NewReader(os.Stdin)
-		fmt.Printf("%v#", shell)
+		currId := rcon.Id()
+		fmt.Printf("%v#(%v)", shell, currId)
 		cmd, _, err := stdinread.ReadLine()
 		if err != nil {
 			logger.Critical.Fatal(err)
 		}
-		currId := rcon.Id()
 		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
 		rcon.Write(execPacket.Serialize())
-		logger.Debug.Println("Flushing writer...")
 		if err != nil {
+			cancel()
 			logger.Critical.Fatal(err)
 		}
-		logger.Debug.Println("Reading from server...")
-		responsePkt, err := packet.Read(rcon, currId)
-		if err != nil {
-			logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
-		}
-		fmt.Printf("OUT: %v\n", responsePkt.BodyStr())
+		// logger.Debug.Println("Reading from server...")
+		// responsePkt, err := packet.ReadWithId(rcon, currId)
+		// if err != nil {
+		// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
+		// }
+		// streamedPacket := <-packetChannel
+		// if streamedPacket.Error != nil {
+		// 	cancel()
+		// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+		// }
+		// fmt.Printf("OUT: %v\n", streamedPacket.BodyStr())
 	}
 
 }
