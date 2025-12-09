@@ -15,11 +15,11 @@ func (src *RCONClient) Id() int32 {
 	return src.count
 }
 
-func (src *RCONClient) Read(p []byte) (n int, err error) {
+func (src *RCONClient) Read(p []byte) (int, error) {
 	return src.con.Read(p)
 }
 
-func (src *RCONClient) Write(p []byte) (n int, err error) {
+func (src *RCONClient) Write(p []byte) (int, error) {
 	defer func() {
 		src.count++
 	}()
