@@ -75,7 +75,7 @@ func TestReadPacket(t *testing.T) {
 	packet[12+len(body)+1] = 0
 
 	reader := bytes.NewReader(packet)
-	pkt, err := Read(reader, id)
+	pkt, err := ReadWithId(reader, id)
 
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
@@ -110,7 +110,7 @@ func TestReadPacketIdMismatch(t *testing.T) {
 	copy(packet[12:], body)
 
 	reader := bytes.NewReader(packet)
-	pkt, err := Read(reader, expectedId)
+	pkt, err := ReadWithId(reader, expectedId)
 
 	if err != ErrPacketIdMismatch {
 		t.Fatalf("expected ErrPacketIdMismatch, got %v", err)
@@ -135,7 +135,7 @@ func TestReadPacketEmptyBody(t *testing.T) {
 	packet[13] = 0
 
 	reader := bytes.NewReader(packet)
-	pkt, err := Read(reader, id)
+	pkt, err := ReadWithId(reader, id)
 
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
