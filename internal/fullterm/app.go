@@ -15,15 +15,16 @@ import (
 
 type app struct {
 	// this is not stdin, just stuff to draw, silly goose
-	InputChannel chan string
-	stdinChannel chan byte
-	fd           int
-	prevState    *term.State
-	cmdLine      []byte
+	DisplayChannel chan string
+	stdinChannel   chan byte
+	fd             int
+	prevState      *term.State
+	cmdLine        []byte
+	content        []string
 }
 
 func (src *app) Write(bytes []byte) (int, error) {
-	src.InputChannel <- string(bytes)
+	src.DisplayChannel <- string(bytes)
 	return len(bytes), nil
 }
 
@@ -43,21 +44,15 @@ func (src *app) ListenStdin(context context.Context) {
 	}
 }
 
-func constructCmdLine(newByte byte, cmdLine []byte) ([]byte, bool) {
-	isSubmission := false
-	switch newByte {
-	case 127, 8: // backspace, delete
-		if len(cmdLine) > 0 {
-			cmdLine = cmdLine[:len(cmdLine)-1]
-		}
-	case 13, 10: // enter
-		isSubmission = true
-	default:
-		cmdLine = append(cmdLine, newByte)
+func (src *app) DrawContent(height int) {
+	fmt.Print(ansi.ClearScreen + ansi.CursorHome)
+	for i := range src.content {
+		fmt.Print(src.content[i])
 	}
-	return cmdLine, isSubmission
+	ansi.MoveCursorTo(height-1, 0)
+	fmt.Print(">")
+	fmt.Print(string(src.cmdLine))
 }
-
 func (src *app) Run(context context.Context) error {
 
 	// this could be an argument but i aint feeling yet
@@ -91,7 +86,6 @@ func (src *app) Run(context context.Context) error {
 		return err
 	}
 
-	content := make([]string, 0)
 	go src.ListenStdin(context)
 	for {
 		select {
@@ -100,30 +94,18 @@ func (src *app) Run(context context.Context) error {
 			return nil
 		case <-context.Done():
 			return nil
-		case newInput := <-src.stdinChannel:
-			fmt.Print(ansi.ClearScreen + ansi.CursorHome)
-			for i := range content {
-				fmt.Print(content[i])
-			}
-			ansi.MoveCursorTo(height-1, 0)
-			fmt.Print(">")
-			newCmd, isSubmission := constructCmdLine(newInput, src.cmdLine)
+		case newStdinInput := <-src.stdinChannel:
+			newCmd, isSubmission := constructCmdLine(newStdinInput, src.cmdLine)
 			if isSubmission {
-				src.InputChannel <- string(newCmd) + "\n\r"
+				src.DisplayChannel <- string(newCmd) + "\n\r"
 				src.cmdLine = []byte{}
 			} else {
 				src.cmdLine = newCmd
-				fmt.Print(string(newCmd))
 			}
-		case newInput := <-src.InputChannel:
-			content = append(content, newInput)
-			fmt.Print(ansi.ClearScreen + ansi.CursorHome)
-			for i := range content {
-				fmt.Print(content[i])
-			}
-			ansi.MoveCursorTo(height-1, 0)
-			fmt.Print(">")
-			fmt.Print(string(src.cmdLine))
+			src.DrawContent(height)
+		case newDisplayInput := <-src.DisplayChannel:
+			src.content = append(src.content, newDisplayInput)
+			src.DrawContent(height)
 		}
 	}
 }
@@ -134,10 +116,11 @@ func (src *app) Close() {
 
 func CreateApp() *app {
 	// buffered, so we don't block on input
-	inputChannel := make(chan string, 10)
+	displayChannel := make(chan string, 10)
 	stdinChannel := make(chan byte)
 	return &app{
-		InputChannel: inputChannel,
-		stdinChannel: stdinChannel,
+		DisplayChannel: displayChannel,
+		stdinChannel:   stdinChannel,
+		content:        make([]string, 0),
 	}
 }
