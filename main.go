@@ -12,11 +12,11 @@ import (
 func main() {
 	logger.Setup(logger.LevelDebug)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	app := fullterm.CreateApp()
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	appRun := func() {
-		err := app.Run(ctx)
-		errChan <- err
+		errChan <- app.Run(ctx)
 	}
 
 	appWriter := func() {
@@ -35,8 +35,7 @@ func main() {
 	go appRun()
 	go appWriter()
 
-	err := <-errChan
-	if err != nil {
+	if err := <-errChan; err != nil {
 		cancel()
 		logger.Critical.Fatal(app)
 	}

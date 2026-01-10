@@ -14,7 +14,6 @@ import (
 )
 
 type app struct {
-	// this is not stdin, just stuff to draw, silly goose
 	DisplayChannel chan string
 	stdinChannel   chan byte
 	fd             int
@@ -44,7 +43,11 @@ func (src *app) ListenStdin(context context.Context) {
 	}
 }
 
-func (src *app) DrawContent(height int) {
+func (src *app) DrawContent() error {
+	_, height, err := term.GetSize(src.fd)
+	if err != nil {
+		return err
+	}
 	fmt.Print(ansi.ClearScreen + ansi.CursorHome)
 	for i := range src.content {
 		fmt.Print(src.content[i])
@@ -52,6 +55,7 @@ func (src *app) DrawContent(height int) {
 	ansi.MoveCursorTo(height-1, 0)
 	fmt.Print(">")
 	fmt.Print(string(src.cmdLine))
+	return nil
 }
 func (src *app) Run(context context.Context) error {
 
@@ -59,10 +63,6 @@ func (src *app) Run(context context.Context) error {
 	src.fd = int(os.Stdin.Fd())
 	if !term.IsTerminal(src.fd) {
 		return errors.New("expected to run in terminal")
-	}
-	_, height, err := term.GetSize(src.fd)
-	if err != nil {
-		return err
 	}
 
 	prevState, err := term.MakeRaw(src.fd)
@@ -102,10 +102,14 @@ func (src *app) Run(context context.Context) error {
 			} else {
 				src.cmdLine = newCmd
 			}
-			src.DrawContent(height)
+			if err := src.DrawContent(); err != nil {
+				return err
+			}
 		case newDisplayInput := <-src.DisplayChannel:
 			src.content = append(src.content, newDisplayInput)
-			src.DrawContent(height)
+			if err := src.DrawContent(); err != nil {
+				return err
+			}
 		}
 	}
 }
