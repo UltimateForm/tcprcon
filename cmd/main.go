@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"github.com/UltimateForm/tcprcon/internal/logger"
 	"github.com/UltimateForm/tcprcon/pkg/client"
 	"github.com/UltimateForm/tcprcon/pkg/common"
-	"github.com/UltimateForm/tcprcon/pkg/packet"
 )
 
 var addressParam string
@@ -29,34 +29,43 @@ func init() {
 
 func determinePassword() (string, error) {
 	if len(passwordParam) > 0 {
+		logger.Debug.Println("using password from parameter")
 		return passwordParam, nil
 	}
 	envPassword := os.Getenv("rcon_password")
 	var password string
 	if len(envPassword) > 0 {
+		logger.Debug.Println("using password from os env")
 		r := ""
 		for r == "" {
 			fmt.Print("RCON password found in environment variables, use for authentication? (y/n) ")
 			stdinread := bufio.NewReader(os.Stdin)
-			stdinbytes, _, err := stdinread.ReadLine()
+			stdinbytes, _isPrefix, err := stdinread.ReadLine()
 			if err != nil {
 				return "", err
 			}
+			if _isPrefix {
+				logger.Err.Println("prefix not supported")
+				continue
+			}
 			r = string(stdinbytes)
 		}
-		if strings.ToLower(r) != "y" {
-			return "", errors.New("Unimplemented")
+		if strings.ToLower(r) == "y" {
+			password = envPassword
 		}
-		password = envPassword
+	}
+	if len(password) == 0 {
+		return "", errors.New("unimplemented password retrieval path")
 	}
 	return password, nil
 }
 
 func Execute() {
 	flag.Parse()
-	logger.Setup(uint8(logLevelParam))
+	logLevel := uint8(logLevelParam)
+	logger.Setup(logLevel)
 	fullAddress := addressParam + ":" + strconv.Itoa(int(portParam))
-	shell := fmt.Sprintf("[rcon@%v]", fullAddress)
+	// shell := fmt.Sprintf("[rcon@%v]", fullAddress)
 	password, err := determinePassword()
 	if err != nil {
 		logger.Critical.Fatal(err)
@@ -71,32 +80,12 @@ func Execute() {
 	logger.Debug.Println("Building auth packet")
 	auhSuccess, authErr := common.Authenticate(rcon, password)
 	if authErr != nil {
-		logger.Err.Fatal(err)
+		logger.Err.Fatal(errors.Join(errors.New("auth failure"), authErr))
 	}
 	if !auhSuccess {
-		logger.Err.Fatal(errors.New("auth failure"))
+		logger.Err.Fatal(errors.New("unknown auth error"))
 	}
-	for {
-		logger.Info.Println("-----STARTING CMD EXCHANGE-----")
-		stdinread := bufio.NewReader(os.Stdin)
-		fmt.Printf("%v#", shell)
-		cmd, _, err := stdinread.ReadLine()
-		if err != nil {
-			logger.Critical.Fatal(err)
-		}
-		currId := rcon.Id()
-		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
-		rcon.Write(execPacket.Serialize())
-		logger.Debug.Println("Flushing writer...")
-		if err != nil {
-			logger.Critical.Fatal(err)
-		}
-		logger.Debug.Println("Reading from server...")
-		responsePkt, err := packet.Read(rcon, currId)
-		if err != nil {
-			logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
-		}
-		fmt.Printf("OUT: %v\n", responsePkt.BodyStr())
-	}
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runRconTerminal(rcon, ctx, logLevel)
 }

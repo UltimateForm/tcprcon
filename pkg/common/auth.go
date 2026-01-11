@@ -16,13 +16,14 @@ func Authenticate(rconClient *client.RCONClient, password string) (bool, error) 
 		logger.Critical.Fatal(err)
 	}
 	logger.Debug.Printf("Written %v bytes of auth packet to connection", written)
-	responsePkt, err := packet.Read(rconClient, authId)
+	responsePkt, err := packet.ReadWithId(rconClient, authId)
 	if err != nil {
 		return false, err
 	}
+
 	if responsePkt.Type == packet.SERVERDATA_RESPONSE_VALUE {
 		logger.Debug.Printf("We got that flaky mythical empty server response, let's read again")
-		responsePkt, err = packet.Read(rconClient, authId)
+		responsePkt, err = packet.ReadWithId(rconClient, authId)
 		if err != nil {
 			return false, err
 		}
