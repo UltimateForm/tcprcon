@@ -63,6 +63,33 @@ func New(level uint8) *LogWriter {
 	}
 }
 
+func newWithCustomDestinations(level uint8, writer io.Writer) *LogWriter {
+	var info, debug, errorWriter, critical, warn io.Writer = io.Discard, io.Discard, io.Discard, io.Discard, io.Discard
+	if level >= LevelCritical {
+		critical = levelWriter{level: LevelCritical, dst: writer}
+	}
+	if level >= LevelError {
+		errorWriter = levelWriter{level: LevelError, dst: writer}
+	}
+	if level >= LevelWarning {
+		warn = levelWriter{level: LevelWarning, dst: writer}
+	}
+	if level >= LevelInfo {
+		info = levelWriter{level: LevelInfo, dst: writer}
+	}
+	if level >= LevelDebug {
+		debug = levelWriter{level: LevelDebug, dst: writer}
+	}
+
+	return &LogWriter{
+		Info:     info,
+		Error:    errorWriter,
+		Critical: critical,
+		Warn:     warn,
+		Debug:    debug,
+	}
+}
+
 var (
 	Writer   *LogWriter
 	Info     *log.Logger
@@ -71,6 +98,15 @@ var (
 	Warn     *log.Logger
 	Critical *log.Logger
 )
+
+func SetupCustomDestination(level uint8, writer io.Writer) {
+	Writer = newWithCustomDestinations(level, writer)
+	Info = log.New(Writer.Info, "INF::", 0)
+	Debug = log.New(Writer.Debug, "DBG::", 0)
+	Err = log.New(Writer.Error, "ERR::", 0)
+	Warn = log.New(Writer.Warn, "WRN::", 0)
+	Critical = log.New(Writer.Critical, "CRT::", 0)
+}
 
 func Setup(level uint8) {
 	Writer = New(level)

@@ -15,6 +15,7 @@ import (
 
 type app struct {
 	DisplayChannel chan string
+	submissionChan chan string
 	stdinChannel   chan byte
 	fd             int
 	prevState      *term.State
@@ -42,6 +43,9 @@ func (src *app) ListenStdin(context context.Context) {
 		}
 	}
 }
+func (src *app) Submissions() <-chan string {
+	return src.submissionChan
+}
 
 func (src *app) DrawContent() error {
 	_, height, err := term.GetSize(src.fd)
@@ -49,11 +53,14 @@ func (src *app) DrawContent() error {
 		return err
 	}
 	fmt.Print(ansi.ClearScreen + ansi.CursorHome)
-	for i := range src.content {
-		fmt.Print(src.content[i])
+	currentRows := len(src.content)
+	startRow := max(currentRows-(height+1), 0)
+	drawableRows := src.content[startRow:]
+	for i := range drawableRows {
+		fmt.Print(drawableRows[i])
 	}
-	ansi.MoveCursorTo(height-1, 0)
-	fmt.Print(">")
+	ansi.MoveCursorTo(height, 0)
+	fmt.Printf("%v-%v=%v|>", height, currentRows, height-currentRows)
 	fmt.Print(string(src.cmdLine))
 	return nil
 }
@@ -80,7 +87,7 @@ func (src *app) Run(context context.Context) error {
 		return err
 	}
 	currFlags.Lflag |= unix.ISIG
-
+	currFlags.Oflag |= unix.ONLCR | unix.OPOST
 	// fyi there's a TCSETS as well that applies the setting differently
 	if err := unix.IoctlSetTermios(src.fd, unix.TCSETSF, currFlags); err != nil {
 		return err
@@ -97,8 +104,9 @@ func (src *app) Run(context context.Context) error {
 		case newStdinInput := <-src.stdinChannel:
 			newCmd, isSubmission := constructCmdLine(newStdinInput, src.cmdLine)
 			if isSubmission {
-				src.DisplayChannel <- string(newCmd) + "\n\r"
+				src.content = append(src.content, string(newCmd)+"\n\r")
 				src.cmdLine = []byte{}
+				src.submissionChan <- string(newCmd)
 			} else {
 				src.cmdLine = newCmd
 			}
@@ -122,9 +130,11 @@ func CreateApp() *app {
 	// buffered, so we don't block on input
 	displayChannel := make(chan string, 10)
 	stdinChannel := make(chan byte)
+	submissionChan := make(chan string, 10)
 	return &app{
 		DisplayChannel: displayChannel,
 		stdinChannel:   stdinChannel,
+		submissionChan: submissionChan,
 		content:        make([]string, 0),
 	}
 }

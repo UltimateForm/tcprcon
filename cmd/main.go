@@ -9,8 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/UltimateForm/tcprcon/internal/fullterm"
 	"github.com/UltimateForm/tcprcon/internal/logger"
 	"github.com/UltimateForm/tcprcon/pkg/client"
 	"github.com/UltimateForm/tcprcon/pkg/common"
@@ -58,11 +58,59 @@ func determinePassword() (string, error) {
 	return password, nil
 }
 
+func createRawTerminal(client *client.RCONClient) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	app := fullterm.CreateApp()
+	logger.SetupCustomDestination(logger.LevelDebug, app)
+	errChan := make(chan error, 1)
+	appRun := func() {
+		errChan <- app.Run(ctx)
+	}
+	packetChannel := packet.CreateResponseChannel(client, ctx)
+	packetReader := func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case streamedPacket := <-packetChannel:
+				if streamedPacket.Error != nil {
+					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+				}
+				fmt.Fprintf(app, "OUT(%v): %v\n", streamedPacket.Id, streamedPacket.BodyStr())
+			}
+		}
+	}
+	submissionChan := app.Submissions()
+	submissionReader := func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case cmd := <-submissionChan:
+				execPacket := packet.New(client.Id(), packet.SERVERDATA_EXECCOMMAND, []byte(cmd))
+				client.Write(execPacket.Serialize())
+			}
+		}
+	}
+	go submissionReader()
+	go packetReader()
+	go appRun()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-errChan:
+			logger.Critical.Fatal(err)
+		}
+	}
+}
+
 func Execute() {
 	flag.Parse()
 	logger.Setup(uint8(logLevelParam))
 	fullAddress := addressParam + ":" + strconv.Itoa(int(portParam))
-	shell := fmt.Sprintf("[rcon@%v]", fullAddress)
+	// shell := fmt.Sprintf("[rcon@%v]", fullAddress)
 	password, err := determinePassword()
 	if err != nil {
 		logger.Critical.Fatal(err)
@@ -82,51 +130,52 @@ func Execute() {
 	if !auhSuccess {
 		logger.Err.Fatal(errors.New("unknown auth error"))
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	packetChannel := packet.CreateResponseChannel(rcon, ctx)
-	packetReader := func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case streamedPacket := <-packetChannel:
-				if streamedPacket.Error != nil {
-					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
-				}
-				fmt.Printf("OUT(%v): %v\n", streamedPacket.Id, streamedPacket.BodyStr())
-			default:
-				logger.Debug.Println("nothing to read, sleeping")
-				time.Sleep(time.Duration(3 * time.Second))
-			}
-		}
-	}
-	go packetReader()
-	for {
-		logger.Info.Println("-----STARTING CMD EXCHANGE-----")
-		stdinread := bufio.NewReader(os.Stdin)
-		currId := rcon.Id()
-		fmt.Printf("%v#(%v)", shell, currId)
-		cmd, _, err := stdinread.ReadLine()
-		if err != nil {
-			logger.Critical.Fatal(err)
-		}
-		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
-		rcon.Write(execPacket.Serialize())
-		if err != nil {
-			cancel()
-			logger.Critical.Fatal(err)
-		}
-		// logger.Debug.Println("Reading from server...")
-		// responsePkt, err := packet.ReadWithId(rcon, currId)
-		// if err != nil {
-		// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
-		// }
-		// streamedPacket := <-packetChannel
-		// if streamedPacket.Error != nil {
-		// 	cancel()
-		// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
-		// }
-		// fmt.Printf("OUT: %v\n", streamedPacket.BodyStr())
-	}
+	createRawTerminal(rcon)
+	// ctx, cancel := context.WithCancel(context.Background())
+	// packetChannel := packet.CreateResponseChannel(rcon, ctx)
+	// packetReader := func() {
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return
+	// 		case streamedPacket := <-packetChannel:
+	// 			if streamedPacket.Error != nil {
+	// 				logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+	// 			}
+	// 			fmt.Printf("OUT(%v): %v\n", streamedPacket.Id, streamedPacket.BodyStr())
+	// 		default:
+	// 			logger.Debug.Println("nothing to read, sleeping")
+	// 			time.Sleep(time.Duration(3 * time.Second))
+	// 		}
+	// 	}
+	// }
+	// go packetReader()
+	// for {
+	// 	logger.Info.Println("-----STARTING CMD EXCHANGE-----")
+	// 	stdinread := bufio.NewReader(os.Stdin)
+	// 	currId := rcon.Id()
+	// 	fmt.Printf("%v#(%v)", shell, currId)
+	// 	cmd, _, err := stdinread.ReadLine()
+	// 	if err != nil {
+	// 		logger.Critical.Fatal(err)
+	// 	}
+	// 	execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
+	// 	rcon.Write(execPacket.Serialize())
+	// 	if err != nil {
+	// 		cancel()
+	// 		logger.Critical.Fatal(err)
+	// 	}
+	// 	// logger.Debug.Println("Reading from server...")
+	// 	// responsePkt, err := packet.ReadWithId(rcon, currId)
+	// 	// if err != nil {
+	// 	// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), err))
+	// 	// }
+	// 	// streamedPacket := <-packetChannel
+	// 	// if streamedPacket.Error != nil {
+	// 	// 	cancel()
+	// 	// 	logger.Critical.Fatal(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+	// 	// }
+	// 	// fmt.Printf("OUT: %v\n", streamedPacket.BodyStr())
+	// }
 
 }
