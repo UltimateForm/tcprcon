@@ -3,6 +3,8 @@ package client
 import (
 	"net"
 	"time"
+
+	"github.com/UltimateForm/tcprcon/internal/logger"
 )
 
 type RCONClient struct {
@@ -39,6 +41,7 @@ func (src *RCONClient) SetWriteDeadline(t time.Time) error {
 }
 
 func (src *RCONClient) Close() error {
+	logger.Debug.Println("Closing connection to", src.Address)
 	return src.con.Close()
 }
 

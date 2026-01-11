@@ -21,7 +21,7 @@ func CreateResponseChannel(con *client.RCONClient, ctx context.Context) <-chan S
 			case <-ctx.Done():
 				return
 			default:
-				con.SetReadDeadline(time.Now().Add(10 * time.Second))
+				con.SetReadDeadline(time.Now().Add(60 * time.Second))
 				packet, err := Read(con)
 				packetChan <- StreamedPacket{
 					Error:      err,

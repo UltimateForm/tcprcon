@@ -14,13 +14,14 @@ import (
 )
 
 type app struct {
-	DisplayChannel chan string
-	submissionChan chan string
-	stdinChannel   chan byte
-	fd             int
-	prevState      *term.State
-	cmdLine        []byte
-	content        []string
+	DisplayChannel   chan string
+	submissionChan   chan string
+	stdinChannel     chan byte
+	fd               int
+	prevState        *term.State
+	cmdLine          []byte
+	content          []string
+	commandSignature string
 }
 
 func (src *app) Write(bytes []byte) (int, error) {
@@ -29,6 +30,7 @@ func (src *app) Write(bytes []byte) (int, error) {
 }
 
 func (src *app) ListenStdin(context context.Context) {
+	// we are only listening to the stdin bytes here, to see how we handle conversion to human readable characters go to util.go
 	for {
 		select {
 		case <-context.Done():
@@ -47,23 +49,30 @@ func (src *app) Submissions() <-chan string {
 	return src.submissionChan
 }
 
-func (src *app) DrawContent() error {
+func (src *app) DrawContent(finalDraw bool) error {
 	_, height, err := term.GetSize(src.fd)
 	if err != nil {
 		return err
 	}
-	fmt.Print(ansi.ClearScreen + ansi.CursorHome)
+	if !finalDraw {
+		fmt.Print(ansi.ClearScreen + ansi.CursorHome)
+	}
 	currentRows := len(src.content)
 	startRow := max(currentRows-(height+1), 0)
 	drawableRows := src.content[startRow:]
 	for i := range drawableRows {
 		fmt.Print(drawableRows[i])
 	}
+
+	if finalDraw {
+		return nil
+	}
 	ansi.MoveCursorTo(height, 0)
-	fmt.Printf("%v-%v=%v|>", height, currentRows, height-currentRows)
+	fmt.Printf(ansi.Format("%v> ", ansi.Blue), src.commandSignature)
 	fmt.Print(string(src.cmdLine))
 	return nil
 }
+
 func (src *app) Run(context context.Context) error {
 
 	// this could be an argument but i aint feeling yet
@@ -73,6 +82,7 @@ func (src *app) Run(context context.Context) error {
 	}
 
 	prevState, err := term.MakeRaw(src.fd)
+	fmt.Print(ansi.EnterAltScreen)
 	sigch := make(chan os.Signal, 1)
 	signal.Notify(sigch, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGABRT)
 
@@ -97,25 +107,24 @@ func (src *app) Run(context context.Context) error {
 	for {
 		select {
 		case <-sigch:
-			src.Close()
 			return nil
 		case <-context.Done():
 			return nil
 		case newStdinInput := <-src.stdinChannel:
 			newCmd, isSubmission := constructCmdLine(newStdinInput, src.cmdLine)
 			if isSubmission {
-				src.content = append(src.content, string(newCmd)+"\n\r")
+				src.content = append(src.content, ansi.Format("> "+string(newCmd)+"\n", ansi.Blue))
 				src.cmdLine = []byte{}
 				src.submissionChan <- string(newCmd)
 			} else {
 				src.cmdLine = newCmd
 			}
-			if err := src.DrawContent(); err != nil {
+			if err := src.DrawContent(false); err != nil {
 				return err
 			}
 		case newDisplayInput := <-src.DisplayChannel:
 			src.content = append(src.content, newDisplayInput)
-			if err := src.DrawContent(); err != nil {
+			if err := src.DrawContent(false); err != nil {
 				return err
 			}
 		}
@@ -123,18 +132,24 @@ func (src *app) Run(context context.Context) error {
 }
 
 func (src *app) Close() {
+	// note: consider closing channels
+	fmt.Print(ansi.ExitAltScreen)
+	src.DrawContent(true)
 	term.Restore(src.fd, src.prevState)
+	fmt.Println()
 }
 
-func CreateApp() *app {
+func CreateApp(commandSignature string) *app {
 	// buffered, so we don't block on input
 	displayChannel := make(chan string, 10)
+	displayChannel <- ansi.Format("##########\n", ansi.Yellow, ansi.Bold)
 	stdinChannel := make(chan byte)
 	submissionChan := make(chan string, 10)
 	return &app{
-		DisplayChannel: displayChannel,
-		stdinChannel:   stdinChannel,
-		submissionChan: submissionChan,
-		content:        make([]string, 0),
+		DisplayChannel:   displayChannel,
+		stdinChannel:     stdinChannel,
+		submissionChan:   submissionChan,
+		content:          make([]string, 0),
+		commandSignature: commandSignature,
 	}
 }

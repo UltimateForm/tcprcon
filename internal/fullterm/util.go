@@ -9,6 +9,7 @@ func constructCmdLine(newByte byte, cmdLine []byte) ([]byte, bool) {
 		}
 	case 13, 10: // enter
 		isSubmission = true
+	case 27: // escape
 	default:
 		cmdLine = append(cmdLine, newByte)
 	}
