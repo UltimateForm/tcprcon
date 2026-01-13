@@ -31,7 +31,7 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 			case streamedPacket := <-packetChannel:
 				if streamedPacket.Error != nil {
 					if errors.Is(streamedPacket.Error, os.ErrDeadlineExceeded) {
-						logger.Debug.Println("deadline exceeded while reading from RCON client, not critical")
+						logger.Debug.Println("read deadline reached; connection is idle or server is silent.")
 						continue
 					}
 					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
