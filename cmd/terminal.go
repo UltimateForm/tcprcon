@@ -35,6 +35,7 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 						continue
 					}
 					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
+					continue
 				}
 				fmt.Fprintf(
 					app,
