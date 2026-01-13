@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/UltimateForm/tcprcon/internal/ansi"
 	"github.com/UltimateForm/tcprcon/internal/fullterm"
@@ -38,9 +39,9 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 				fmt.Fprintf(
 					app,
 					"(%v): RESPONSE TYPE %v\n%v\n",
-					ansi.Format(strconv.Itoa(int(streamedPacket.Id)), ansi.Yellow, ansi.Bold),
-					ansi.Format(strconv.Itoa(int(streamedPacket.Type)), ansi.Yellow, ansi.Bold),
-					ansi.Format(streamedPacket.BodyStr(), ansi.Yellow),
+					ansi.Format(strconv.Itoa(int(streamedPacket.Id)), ansi.Green, ansi.Bold),
+					ansi.Format(strconv.Itoa(int(streamedPacket.Type)), ansi.Green, ansi.Bold),
+					ansi.Format(strings.TrimRight(streamedPacket.BodyStr(), "\n\r")+"\n", ansi.Green),
 				)
 			}
 		}

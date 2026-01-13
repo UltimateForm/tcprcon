@@ -8,10 +8,13 @@ const (
 	ExitAltScreen  = "\033[?1049l"
 	Red            = 31
 	Green          = 32
+	BrightGreen    = 92
 	Yellow         = 33
 	Blue           = 34
+	BrightBlue     = 94
 	Magenta        = 35
 	Cyan           = 36
 	Bold           = 1
+	DefaultColor   = 39
 	Reset          = 0
 )

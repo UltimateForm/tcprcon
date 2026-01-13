@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"os"
+
+	"github.com/UltimateForm/tcprcon/internal/ansi"
 )
 
 const (
@@ -91,7 +93,7 @@ func newWithCustomDestinations(level uint8, writer io.Writer) *LogWriter {
 }
 
 var (
-	Writer   *LogWriter
+	writer   *LogWriter
 	Info     *log.Logger
 	Debug    *log.Logger
 	Err      *log.Logger
@@ -99,22 +101,22 @@ var (
 	Critical *log.Logger
 )
 
-func SetupCustomDestination(level uint8, writer io.Writer) {
-	Writer = newWithCustomDestinations(level, writer)
-	Info = log.New(Writer.Info, "INF::", 0)
-	Debug = log.New(Writer.Debug, "DBG::", 0)
-	Err = log.New(Writer.Error, "ERR::", 0)
-	Warn = log.New(Writer.Warn, "WRN::", 0)
-	Critical = log.New(Writer.Critical, "CRT::", 0)
+func setGlobalLoggers() {
+	Info = log.New(writer.Info, ansi.Format("INF::", ansi.DefaultColor), 0)
+	Debug = log.New(writer.Debug, ansi.Format("DBG::", ansi.Yellow), 0)
+	Err = log.New(writer.Error, ansi.Format("ERR::", ansi.Red), 0)
+	Warn = log.New(writer.Warn, ansi.Format("WRN::", ansi.Magenta), 0)
+	Critical = log.New(writer.Critical, ansi.Format("CRT::", ansi.Red), 0)
+}
+
+func SetupCustomDestination(level uint8, customWriter io.Writer) {
+	writer = newWithCustomDestinations(level, customWriter)
+	setGlobalLoggers()
 }
 
 func Setup(level uint8) {
-	Writer = New(level)
-	Info = log.New(Writer.Info, "INF::", 0)
-	Debug = log.New(Writer.Debug, "DBG::", 0)
-	Err = log.New(Writer.Error, "ERR::", 0)
-	Warn = log.New(Writer.Warn, "WRN::", 0)
-	Critical = log.New(Writer.Critical, "CRT::", 0)
+	writer = New(level)
+	setGlobalLoggers()
 }
 
 func init() {

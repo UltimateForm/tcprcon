@@ -65,7 +65,6 @@ func Execute() {
 	logLevel := uint8(logLevelParam)
 	logger.Setup(logLevel)
 	fullAddress := addressParam + ":" + strconv.Itoa(int(portParam))
-	// shell := fmt.Sprintf("[rcon@%v]", fullAddress)
 	password, err := determinePassword()
 	if err != nil {
 		logger.Critical.Fatal(err)
