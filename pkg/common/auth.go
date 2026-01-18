@@ -13,7 +13,7 @@ func Authenticate(rconClient *client.RCONClient, password string) (bool, error) 
 	authPacket := packet.NewAuthPacket(authId, password)
 	written, err := rconClient.Write(authPacket.Serialize())
 	if err != nil {
-		logger.Critical.Fatal(err)
+		return false, err
 	}
 	logger.Debug.Printf("Written %v bytes of auth packet to connection", written)
 	responsePkt, err := packet.ReadWithId(rconClient, authId)
