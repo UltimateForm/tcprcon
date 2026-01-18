@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -17,10 +18,14 @@ import (
 
 func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel uint8) {
 	app := fullterm.CreateApp(fmt.Sprintf("rcon@%v", client.Address))
+	// dont worry we are resetting the logger before returning
 	logger.SetupCustomDestination(logLevel, app)
-	errChan := make(chan error, 1)
+
+	appErrors := make(chan error, 1)
+	connectionErrors := make(chan error, 1)
+
 	appRun := func() {
-		errChan <- app.Run(ctx)
+		appErrors <- app.Run(ctx)
 	}
 	packetChannel := packet.CreateResponseChannel(client, ctx)
 	packetReader := func() {
@@ -34,15 +39,19 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 						logger.Debug.Println("read deadline reached; connection is idle or server is silent.")
 						continue
 					}
+					if errors.Is(streamedPacket.Error, io.EOF) {
+						connectionErrors <- io.EOF
+						return
+					}
 					logger.Err.Println(errors.Join(errors.New("error while reading from RCON client"), streamedPacket.Error))
 					continue
 				}
 				fmt.Fprintf(
 					app,
-					"(%v): RESPONSE TYPE %v\n%v\n",
+					"(%v): RCV PKT %v\n%v\n",
 					ansi.Format(strconv.Itoa(int(streamedPacket.Id)), ansi.Green, ansi.Bold),
 					ansi.Format(strconv.Itoa(int(streamedPacket.Type)), ansi.Green, ansi.Bold),
-					ansi.Format(strings.TrimRight(streamedPacket.BodyStr(), "\n\r")+"\n", ansi.Green),
+					ansi.Format(strings.TrimRight(streamedPacket.BodyStr(), "\n\r"), ansi.Green),
 				)
 			}
 		}
@@ -55,6 +64,12 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 				return
 			case cmd := <-submissionChan:
 				execPacket := packet.New(client.Id(), packet.SERVERDATA_EXECCOMMAND, []byte(cmd))
+				fmt.Fprintf(
+					app,
+					"(%v): SND CMD %v\n",
+					ansi.Format(strconv.Itoa(int(client.Id())), ansi.Green, ansi.Bold),
+					ansi.Format(cmd, ansi.Blue),
+				)
 				client.Write(execPacket.Serialize())
 			}
 		}
@@ -62,17 +77,29 @@ func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel ui
 	go submissionReader()
 	go packetReader()
 	go appRun()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case err := <-errChan:
-			logger.Setup(logLevel)
-			logger.Debug.Println("exiting app")
-			if err != nil {
-				logger.Critical.Println(err)
-			}
-			return
+
+	select {
+	case <-ctx.Done():
+		logger.Debug.Println("context done")
+		break
+	case err := <-connectionErrors:
+		defer func() {
+			logger.Critical.Println(errors.Join(errors.New("connection error"), err))
+		}()
+		break
+	case err := <-appErrors:
+		// lets do this because the app might be unrealiable at this point
+		if err != nil {
+			defer func() {
+				logger.Critical.Println(errors.Join(errors.New("app error"), err))
+			}()
+		} else {
+			defer func() {
+				logger.Debug.Println("graceful app exit")
+			}()
 		}
+		break
 	}
+	app.Close()
+	logger.Setup(logLevel)
 }

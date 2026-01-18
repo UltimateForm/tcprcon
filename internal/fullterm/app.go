@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/UltimateForm/tcprcon/internal/ansi"
@@ -22,6 +23,7 @@ type app struct {
 	cmdLine          []byte
 	content          []string
 	commandSignature string
+	once             sync.Once
 }
 
 func (src *app) Write(bytes []byte) (int, error) {
@@ -132,11 +134,13 @@ func (src *app) Run(context context.Context) error {
 }
 
 func (src *app) Close() {
-	// note: consider closing channels
-	fmt.Print(ansi.ExitAltScreen)
-	src.DrawContent(true)
-	term.Restore(src.fd, src.prevState)
-	fmt.Println()
+	src.once.Do(func() {
+		// note: consider closing channels
+		fmt.Print(ansi.ExitAltScreen)
+		src.DrawContent(true)
+		term.Restore(src.fd, src.prevState)
+		fmt.Println()
+	})
 }
 
 func CreateApp(commandSignature string) *app {
