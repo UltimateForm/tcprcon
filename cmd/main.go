@@ -13,6 +13,7 @@ import (
 	"github.com/UltimateForm/tcprcon/internal/logger"
 	"github.com/UltimateForm/tcprcon/pkg/client"
 	"github.com/UltimateForm/tcprcon/pkg/common"
+	"golang.org/x/term"
 )
 
 var addressParam string
@@ -55,7 +56,13 @@ func determinePassword() (string, error) {
 		}
 	}
 	if len(password) == 0 {
-		return "", errors.New("unimplemented password retrieval path")
+		fmt.Print("RCON PASSWORD: ")
+		stdinbytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println()
+		if err != nil {
+			return "", err
+		}
+		password = string(stdinbytes)
 	}
 	return password, nil
 }
