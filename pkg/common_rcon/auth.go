@@ -1,19 +1,19 @@
-package common
+package common_rcon
 
 import (
 	"fmt"
 
 	"github.com/UltimateForm/tcprcon/internal/logger"
-	"github.com/UltimateForm/tcprcon/pkg/client"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
+	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )
 
-func Authenticate(rconClient *client.RCONClient, password string) (bool, error) {
+func Authenticate(rconClient *rcon.Client, password string) (bool, error) {
 	authId := rconClient.Id()
 	authPacket := packet.NewAuthPacket(authId, password)
 	written, err := rconClient.Write(authPacket.Serialize())
 	if err != nil {
-		logger.Critical.Fatal(err)
+		return false, err
 	}
 	logger.Debug.Printf("Written %v bytes of auth packet to connection", written)
 	responsePkt, err := packet.ReadWithId(rconClient, authId)

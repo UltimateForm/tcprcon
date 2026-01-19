@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/UltimateForm/tcprcon/pkg/client"
+	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )
 
 type StreamedPacket struct {
@@ -12,7 +12,7 @@ type StreamedPacket struct {
 	RCONPacket
 }
 
-func CreateResponseChannel(con *client.RCONClient, ctx context.Context) <-chan StreamedPacket {
+func CreateResponseChannel(con *rcon.Client, ctx context.Context) <-chan StreamedPacket {
 	packetChan := make(chan StreamedPacket)
 	stream := func() {
 		defer close(packetChan)

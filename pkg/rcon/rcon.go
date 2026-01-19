@@ -1,4 +1,4 @@
-package client
+package rcon
 
 import (
 	"net"
@@ -7,50 +7,50 @@ import (
 	"github.com/UltimateForm/tcprcon/internal/logger"
 )
 
-type RCONClient struct {
+type Client struct {
 	Address string
 	con     net.Conn
 	count   int32
 }
 
-func (src *RCONClient) Id() int32 {
+func (src *Client) Id() int32 {
 	return src.count
 }
 
-func (src *RCONClient) Read(p []byte) (int, error) {
+func (src *Client) Read(p []byte) (int, error) {
 	return src.con.Read(p)
 }
 
-func (src *RCONClient) Write(p []byte) (int, error) {
+func (src *Client) Write(p []byte) (int, error) {
 	defer func() {
 		src.count++
 	}()
 	return src.con.Write(p)
 }
 
-func (src *RCONClient) SetReadDeadline(t time.Time) error {
+func (src *Client) SetReadDeadline(t time.Time) error {
 	return src.con.SetReadDeadline(t)
 }
 
-func (src *RCONClient) SetDeadline(t time.Time) error {
+func (src *Client) SetDeadline(t time.Time) error {
 	return src.con.SetDeadline(t)
 }
 
-func (src *RCONClient) SetWriteDeadline(t time.Time) error {
+func (src *Client) SetWriteDeadline(t time.Time) error {
 	return src.con.SetWriteDeadline(t)
 }
 
-func (src *RCONClient) Close() error {
+func (src *Client) Close() error {
 	logger.Debug.Println("Closing connection to", src.Address)
 	return src.con.Close()
 }
 
-func New(address string) (*RCONClient, error) {
+func New(address string) (*Client, error) {
 	con, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
-	return &RCONClient{
+	return &Client{
 		Address: address,
 		con:     con,
 		count:   0,

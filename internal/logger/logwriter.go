@@ -102,11 +102,11 @@ var (
 )
 
 func setGlobalLoggers() {
-	Info = log.New(writer.Info, ansi.Format("INF::", ansi.DefaultColor), 0)
-	Debug = log.New(writer.Debug, ansi.Format("DBG::", ansi.Yellow), 0)
-	Err = log.New(writer.Error, ansi.Format("ERR::", ansi.Red), 0)
-	Warn = log.New(writer.Warn, ansi.Format("WRN::", ansi.Magenta), 0)
-	Critical = log.New(writer.Critical, ansi.Format("CRT::", ansi.Red), 0)
+	Info = log.New(writer.Info, ansi.Format("TCPRCON:INF::", ansi.DefaultColor), 0)
+	Debug = log.New(writer.Debug, ansi.Format("TCPRCON:DBG::", ansi.Yellow), 0)
+	Err = log.New(writer.Error, ansi.Format("TCPRCON:ERR::", ansi.Red), 0)
+	Warn = log.New(writer.Warn, ansi.Format("TCPRCON:WRN::", ansi.Magenta), 0)
+	Critical = log.New(writer.Critical, ansi.Format("TCPRCON:CRT::", ansi.Red), 0)
 }
 
 func SetupCustomDestination(level uint8, customWriter io.Writer) {

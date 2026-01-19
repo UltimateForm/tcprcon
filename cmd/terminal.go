@@ -12,11 +12,11 @@ import (
 	"github.com/UltimateForm/tcprcon/internal/ansi"
 	"github.com/UltimateForm/tcprcon/internal/fullterm"
 	"github.com/UltimateForm/tcprcon/internal/logger"
-	"github.com/UltimateForm/tcprcon/pkg/client"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
+	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )
 
-func runRconTerminal(client *client.RCONClient, ctx context.Context, logLevel uint8) {
+func runRconTerminal(client *rcon.Client, ctx context.Context, logLevel uint8) {
 	app := fullterm.CreateApp(fmt.Sprintf("rcon@%v", client.Address))
 	// dont worry we are resetting the logger before returning
 	logger.SetupCustomDestination(logLevel, app)
