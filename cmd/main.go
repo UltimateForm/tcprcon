@@ -12,9 +12,9 @@ import (
 
 	"github.com/UltimateForm/tcprcon/internal/ansi"
 	"github.com/UltimateForm/tcprcon/internal/logger"
-	"github.com/UltimateForm/tcprcon/pkg/client"
-	"github.com/UltimateForm/tcprcon/pkg/common"
+	"github.com/UltimateForm/tcprcon/pkg/common_rcon"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
+	"github.com/UltimateForm/tcprcon/pkg/rcon"
 	"golang.org/x/term"
 )
 
@@ -71,7 +71,7 @@ func determinePassword() (string, error) {
 	return password, nil
 }
 
-func execInputCmd(rcon *client.RCONClient) error {
+func execInputCmd(rcon *rcon.Client) error {
 	logger.Debug.Println("executing input command: " + inputCmdParam)
 	execPacket := packet.New(rcon.Id(), packet.SERVERDATA_EXECCOMMAND, []byte(inputCmdParam))
 	fmt.Printf(
@@ -104,14 +104,14 @@ func Execute() {
 		logger.Critical.Fatal(err)
 	}
 	logger.Debug.Printf("Dialing %v at port %v\n", addressParam, portParam)
-	rcon, err := client.New(fullAddress)
+	rconClient, err := rcon.New(fullAddress)
 	if err != nil {
 		logger.Critical.Fatal(err)
 	}
-	defer rcon.Close()
+	defer rconClient.Close()
 
 	logger.Debug.Println("Building auth packet")
-	auhSuccess, authErr := common.Authenticate(rcon, password)
+	auhSuccess, authErr := common_rcon.Authenticate(rconClient, password)
 	if authErr != nil {
 		logger.Critical.Println(errors.Join(errors.New("auth failure"), authErr))
 		return
@@ -122,7 +122,7 @@ func Execute() {
 	}
 
 	if inputCmdParam != "" {
-		if err := execInputCmd(rcon); err != nil {
+		if err := execInputCmd(rconClient); err != nil {
 			logger.Critical.Println(err)
 		}
 		return
@@ -130,6 +130,6 @@ func Execute() {
 		// could just rely on early return but i feel anxious :D
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		runRconTerminal(rcon, ctx, logLevel)
+		runRconTerminal(rconClient, ctx, logLevel)
 	}
 }

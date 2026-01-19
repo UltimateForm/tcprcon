@@ -1,4 +1,4 @@
-package client
+package rcon
 
 import (
 	"bytes"
@@ -56,7 +56,7 @@ func (m *MockConn) SetWriteDeadline(t time.Time) error {
 
 func TestRCONClientId(t *testing.T) {
 	mock := &MockConn{}
-	client := &RCONClient{
+	client := &Client{
 		Address: "test:27015",
 		con:     mock,
 		count:   42,
@@ -70,7 +70,7 @@ func TestRCONClientId(t *testing.T) {
 
 func TestRCONClientWrite(t *testing.T) {
 	mock := &MockConn{}
-	client := &RCONClient{
+	client := &Client{
 		Address: "test:27015",
 		con:     mock,
 		count:   0,
@@ -99,7 +99,7 @@ func TestRCONClientWrite(t *testing.T) {
 
 func TestRCONClientWriteIncrementsCount(t *testing.T) {
 	mock := &MockConn{}
-	client := &RCONClient{
+	client := &Client{
 		Address: "test:27015",
 		con:     mock,
 		count:   0,
@@ -118,7 +118,7 @@ func TestRCONClientRead(t *testing.T) {
 	testData := []byte("response data")
 	mock := &MockConn{readData: testData}
 
-	client := &RCONClient{
+	client := &Client{
 		Address: "test:27015",
 		con:     mock,
 		count:   0,
