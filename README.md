@@ -34,6 +34,7 @@ go install github.com/UltimateForm/tcprcon@latest
 ```
 
 Or build from source:
+
 <sub>note: requires golang 1.22+</sub>
 
 ```bash
