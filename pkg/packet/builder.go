@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/UltimateForm/tcprcon/internal/logger"
+	"github.com/UltimateForm/tcprcon/pkg/logger"
 )
 
 type RCONPacket struct {
