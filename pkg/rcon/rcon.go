@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/UltimateForm/tcprcon/internal/logger"
+	"github.com/UltimateForm/tcprcon/pkg/logger"
 )
 
 type Client struct {

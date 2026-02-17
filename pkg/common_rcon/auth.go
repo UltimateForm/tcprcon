@@ -3,7 +3,7 @@ package common_rcon
 import (
 	"fmt"
 
-	"github.com/UltimateForm/tcprcon/internal/logger"
+	"github.com/UltimateForm/tcprcon/pkg/logger"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
 	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )

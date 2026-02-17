@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/UltimateForm/tcprcon/internal/ansi"
-	"github.com/UltimateForm/tcprcon/internal/logger"
+	"github.com/UltimateForm/tcprcon/pkg/logger"
 	"github.com/UltimateForm/tcprcon/pkg/common_rcon"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
 	"github.com/UltimateForm/tcprcon/pkg/rcon"
