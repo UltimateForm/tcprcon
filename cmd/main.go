@@ -84,9 +84,14 @@ func Execute() {
 		if err != nil {
 			logger.Critical.Fatal(err)
 		}
-		currId := rcon.Id()
-		execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
-		rcon.Write(execPacket.Serialize())
+		if string(cmd) != "." {
+			currId := rcon.Id()
+			execPacket := packet.New(currId, packet.SERVERDATA_EXECCOMMAND, cmd)
+			rcon.Write(execPacket.Serialize())
+		} else {
+			logger.Info.Println("Skipping server write")
+		}
+
 		logger.Debug.Println("Reading from server...")
 		responsePkt, err := packet.Read(rcon)
 		if err != nil {
