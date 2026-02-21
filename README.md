@@ -1,10 +1,10 @@
 # tcprcon
 
-Remote Console (RCON) is a protocol that allows remote administration of game servers. Essentially, it's an agreement on how a client can send commands to a game server and receive responses over a standard TCP connection. This enables developers and administrators to manage server settings, execute commands, and monitor game events without direct access to the server console.
+A fully native RCON client implementation, zero deps.
 
-This library provides a client-side implementation of the RCON protocol, based on the [Source RCON Protocol](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol).
 
 - [tcprcon](#tcprcon)
+  - [Installation](#installation)
   - [Using as a Library](#using-as-a-library)
     - [Streaming Responses](#streaming-responses)
   - [tcprcon-cli](#tcprcon-cli)
@@ -14,7 +14,18 @@ This library provides a client-side implementation of the RCON protocol, based o
   - [License](#license)
 
 
-A fully native RCON client implementation, zero deps
+Remote Console (RCON) is a protocol that allows remote administration of game servers. Essentially, it's an agreement on how a client can send commands to a game server and receive responses over a standard TCP connection. This enables developers and administrators to manage server settings, execute commands, and monitor game events without direct access to the server console.
+
+This library provides a client-side implementation of the RCON protocol, based on the [Source RCON Protocol](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol).
+
+
+## Installation
+
+To install `tcprcon`, use `go get`:
+
+```bash
+go get github.com/UltimateForm/tcprcon
+```
 
 ## Using as a Library
 
