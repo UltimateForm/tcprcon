@@ -1,5 +1,9 @@
 # tcprcon
 
+Remote Console (RCON) is a protocol that allows remote administration of game servers. Essentially, it's an agreement on how a client can send commands to a game server and receive responses over a standard TCP connection. This enables developers and administrators to manage server settings, execute commands, and monitor game events without direct access to the server console.
+
+This library provides a client-side implementation of the RCON protocol, based on the [Source RCON Protocol](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol).
+
 - [tcprcon](#tcprcon)
   - [Using as a Library](#using-as-a-library)
     - [Streaming Responses](#streaming-responses)
@@ -10,12 +14,13 @@
   - [License](#license)
 
 
-
 A fully native RCON client implementation, zero deps
 
 ## Using as a Library
 
+
 The RCON client can be used as a library in your own Go projects:
+
 
 ```go
 import (
@@ -51,11 +56,15 @@ func main() {
 ```
 
 
+
 ### Streaming Responses
+
 
 For continuous listening (e.g., server broadcasts or multiple responses), use `CreateResponseChannel`:
 
+
 <sub>usually you will want a more ellegant way of handling the concurrent nature of this, this example is just for illustration</sub>
+
 
 ```go
 import (
@@ -98,14 +107,19 @@ func main() {
 }
 ```
 
+
 ## tcprcon-cli
+
 
 https://github.com/UltimateForm/tcprcon-cli
 
 
+
 ## Caveats
 
+
 ### Handling Server Broadcasts
+
 
 Servers can (and will) often broadcast events over the TCP connection in an asynchronous manner. These are typically game events like killfeed messages, player logins, chat, etc. Some servers operate on an opt-in basis, requiring the RCON client to signal its interest in receiving these broadcasts, while others broadcast them by default.
 
@@ -116,6 +130,7 @@ Let's say you send a command packet (e.g., "status" with ID 54) and then immedia
 Generally, the best practice is to decouple your command writes from your response reads. The example under [Using as a Library](#using-as-a-library) demonstrates a synchronous request-response pattern for a `playerlist` command, which can be unoptimal in such scenarios. For a more robust approach, you should handle your writes (commands) and reads (responses and broadcasts) in parallel, as shown in the [Streaming Responses](#streaming-responses) section.
 
 ### Server Protocol Compliance
+
 
 Ideally, all RCON servers would consistently follow the Valve protocol defined at https://developer.valvesoftware.com/wiki/Source_RCON_Protocol, eliminating surprises. However, in reality, some server implementations—such as that of Rust—exhibit unorthodox behavior.
 
@@ -130,6 +145,7 @@ These are the most prominent violations; other quirks might exist with greater r
 The concluding point is that you should anticipate such cases. In general, this library will function—even with servers like Rust—because it provides the fundamental tools for writing and reading data according to Valve's protocol over a TCP socket. However, depending on these aforementioned server-specific behaviors, you might need to adapt how and when you send commands and process responses in your application.
 
 Specifically for Rust servers, you might implement simple checks to filter out extraneous packets. For example, you could ignore all `SERVERDATA_RESPONSE_VALUE` packets with `ID -1` (after successful authentication) or `ID 0`, or filter out any packet with a `Type` value greater than `3` (as types `0-3` cover standard RCON messages). This allows your application to focus on the actual command responses while gracefully discarding server-initiated noise.
+
 
 ## License
 
