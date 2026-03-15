@@ -2,9 +2,8 @@ package packet
 
 import (
 	"context"
+	"io"
 	"time"
-
-	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )
 
 type StreamedPacket struct {
@@ -12,7 +11,12 @@ type StreamedPacket struct {
 	RCONPacket
 }
 
-func CreateResponseChannel(con *rcon.Client, ctx context.Context) <-chan StreamedPacket {
+type responseConn interface {
+	io.Reader
+	SetReadDeadline(t time.Time) error
+}
+
+func CreateResponseChannel(con responseConn, ctx context.Context) <-chan StreamedPacket {
 	packetChan := make(chan StreamedPacket)
 	stream := func() {
 		defer close(packetChan)
