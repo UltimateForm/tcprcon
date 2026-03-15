@@ -2,13 +2,19 @@ package common_rcon
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/UltimateForm/tcprcon/pkg/logger"
 	"github.com/UltimateForm/tcprcon/pkg/packet"
-	"github.com/UltimateForm/tcprcon/pkg/rcon"
 )
 
-func Authenticate(rconClient *rcon.Client, password string) (bool, error) {
+type rconClient interface {
+	io.Reader
+	io.Writer
+	Id() int32
+}
+
+func Authenticate(rconClient rconClient, password string) (bool, error) {
 	authId := rconClient.Id()
 	authPacket := packet.NewAuthPacket(authId, password)
 	written, err := rconClient.Write(authPacket.Serialize())
