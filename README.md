@@ -7,6 +7,10 @@ A fully native RCON client implementation, zero deps.
   - [Installation](#installation)
   - [Using as a Library](#using-as-a-library)
     - [Streaming Responses](#streaming-responses)
+  - [Examples](#examples)
+    - [Controlled Client](#controlled-client)
+    - [Connection Pool](#connection-pool)
+    - [Event Listener](#event-listener)
   - [tcprcon-cli](#tcprcon-cli)
   - [Caveats](#caveats)
     - [Handling Server Broadcasts](#handling-server-broadcasts)
@@ -115,6 +119,75 @@ func main() {
         }
         fmt.Printf("Received: %s\n", pkt.BodyStr())
     }
+}
+```
+
+
+## Examples
+
+The `/examples` directory contains production-ready patterns for common use cases:
+
+### Controlled Client
+
+`ControlledClient` wraps the base `Client` with mutex protection and a simplified `Execute()` method for synchronous command execution. Use this when you need a single-connection client in a concurrent context.
+
+```go
+import "github.com/UltimateForm/tcprcon/examples" // replace this with wherever you have your implementation
+
+client, _ := examples.NewControlledClient("192.168.1.100:7778")
+defer client.Close()
+
+client.Authenticate("password")
+response, _ := client.Execute("status")
+fmt.Println(response)
+```
+
+### Connection Pool
+
+`ConnectionPool` manages a pool of reusable connections, automatically creating and discarding clients as needed. Use this for high-concurrency scenarios where multiple commands run in parallel.
+
+```go
+import "github.com/UltimateForm/tcprcon/examples" // replace this with wherever you have your implementation
+
+pool := examples.NewConnectionPool("192.168.1.100:7778", "password", 5, time.Minute)
+defer pool.Close()
+
+// Option 1: Use WithClient for automatic release/discard
+err := pool.WithClient(context.Background(), func(client *examples.ControlledClient) error {
+    response, err := client.Execute("playerlist")
+    fmt.Println(response)
+    return err
+})
+
+// Option 2: Manually manage client lifecycle
+client, err := pool.Get(context.Background())
+if err != nil {
+    panic(err)
+}
+response, err := client.Execute("status")
+if err != nil {
+    pool.Discard(client)  // Mark as bad and remove from pool
+} else {
+    pool.Release(client)  // Return to idle pool
+}
+fmt.Println(response)
+```
+
+### Event Listener
+
+`EventListener` demonstrates streaming server events using `CreateResponseChannel`, with automatic reconnection and keepalive. Use this to listen for asynchronous server broadcasts (player logins, chat, killfeed, etc.).
+
+```go
+import "github.com/UltimateForm/tcprcon/examples" // replace this with wherever you have your implementation
+
+listener, _ := examples.NewEventListener("192.168.1.100:7778", "password")
+defer listener.Close()
+
+ctx := context.Background()
+listener.Run(ctx)
+
+for event := range listener.Events {
+    fmt.Printf("Event: %s\n", event)
 }
 ```
 
