@@ -11,6 +11,7 @@ A fully native RCON client implementation, zero deps.
     - [Controlled Client](#controlled-client)
     - [Connection Pool](#connection-pool)
     - [Event Listener](#event-listener)
+    - [Real-World Application](#real-world-application)
   - [tcprcon-cli](#tcprcon-cli)
   - [Caveats](#caveats)
     - [Handling Server Broadcasts](#handling-server-broadcasts)
@@ -190,6 +191,14 @@ for event := range listener.Events {
     fmt.Printf("Event: %s\n", event)
 }
 ```
+
+### Real-World Application
+
+For a complete, production-ready application using these patterns, see [mh-gobot](https://github.com/UltimateForm/mh-gobot) — a game server bot that demonstrates:
+- Connection pooling for concurrent command execution
+- Event streaming with custom parsing
+- Integration with external services
+- Error handling and reconnection strategies
 
 
 ## tcprcon-cli
