@@ -46,41 +46,35 @@ func (src RCONPacket) Serialize() []byte {
 	return bytesSlice
 }
 
-func ReadWithId(reader io.Reader, expectedId int32) (RCONPacket, error) {
+func readPacket(reader io.Reader) (RCONPacket, error) {
 	dword := make([]byte, 4)
-	_, err := reader.Read(dword)
+	_, err := io.ReadFull(reader, dword)
 	if err != nil {
 		return RCONPacket{}, err
 	}
 	packetSize := binary.LittleEndian.Uint32(dword)
 	packetBytes := make([]byte, packetSize)
-	_, err = reader.Read(packetBytes)
+	_, err = io.ReadFull(reader, packetBytes)
 	if err != nil {
 		return RCONPacket{}, err
 	}
 	id := int32(binary.LittleEndian.Uint32(packetBytes[0:4]))
-	if id != expectedId {
-		return RCONPacket{Id: id}, ErrPacketIdMismatch
-	}
 	packetType := int32(binary.LittleEndian.Uint32(packetBytes[4:8]))
 	body := bytes.TrimRight(packetBytes[8:], "\x00")
 	return New(id, packetType, body), nil
 }
 
+func ReadWithId(reader io.Reader, expectedId int32) (RCONPacket, error) {
+	pkt, err := readPacket(reader)
+	if err != nil {
+		return pkt, err
+	}
+	if pkt.Id != expectedId {
+		return pkt, ErrPacketIdMismatch
+	}
+	return pkt, nil
+}
+
 func Read(reader io.Reader) (RCONPacket, error) {
-	dword := make([]byte, 4)
-	_, err := reader.Read(dword)
-	if err != nil {
-		return RCONPacket{}, err
-	}
-	packetSize := binary.LittleEndian.Uint32(dword)
-	packetBytes := make([]byte, packetSize)
-	_, err = reader.Read(packetBytes)
-	if err != nil {
-		return RCONPacket{}, err
-	}
-	id := int32(binary.LittleEndian.Uint32(packetBytes[0:4]))
-	packetType := int32(binary.LittleEndian.Uint32(packetBytes[4:8]))
-	body := bytes.TrimRight(packetBytes[8:], "\x00")
-	return New(id, packetType, body), nil
+	return readPacket(reader)
 }
